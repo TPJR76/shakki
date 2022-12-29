@@ -1,40 +1,28 @@
 """
-COMP.CS.100 Ohjelmointi 1
-Nimi: Taneli Rikala
+Tekijä: Taneli Rikala
 
-Ohjelman kuvaus: Ideani oli toteuttaa edistyneeksi käyttöliittymäksi
-shakkilauta, joka rakentuu Tkinterin napeista. Ensimmäisen version (tämä
-ohjelma) oli tarkoitus olla toimiva shakkilauta ilman kuvien käyttöä,
-ja suunnittelin lisääväni palautukseen vielä omat grafiikkani. Tämän version
-täyteen toimimiseen meni kuitenkin sen verran aikaa, että päätin palauttaa sen
-tällaisenaan. Tein tämän ohjelman parissa suurinta osaa asioita ensimmäistä
-kertaa, joten sitä ei ole optimoitu juurikaan.
+Ohjelman kuvaus: Toteutin yliopistokurssilla graafisen käyttöliittymän,
+jonka päälle lähdin tekoälystä kiinnostuneena myöhemmin työstämään
+vapaa-ajallani myös shakkikonetta. Käyttöliittymä rakentuu Tkinterin napeista.
 
-Peli antaa tehdä vain säännöissä sallittuja siirtoja ja korostaa punaisella
-shakissa olevan kuninkaan. Pelin voittaa konkreettisesti vain syömällä
-kuninkaan. Pelin suorittaminen pyörii pääpiirteittäin suunnittelemassani
-silmukassa:
-- Valmistele pelilauta
-    -> lisää tyhjät ruudut
-    -> aseta nappulat oikeisiin ruutuihin
-    -> jaa vuorot
-- Vuoro
-    -> deaktivoi vastustajan nappulat
-    -> aktivoi omat nappulat
-- Nappuloiden painelu
-    -> poista aiemmin näytetyt siirtonapit
-    -> lisää painettua nappulaa vastaavat siirtonapit
-- Siirtonapin painallus
-    -> poista näytetyt siirtonapit
-    -> päivitä tietorakenteet oikein
-    -> aseta lauta uudelleen
+Shakkikone päivitetään myöhemmin.
 """
 
 
 from tkinter import *
 
+# Globaalit muuttujat
 
-# Globaalina muuttujana lista shakkilaudan koordinaattikirjaimista
+# Ulkoasu
+IKKUNAN_TAUSTAVARI = "#424242"
+IKKUNAN_FONTTI = "Kozuka Gothic Pro B", 18, "bold"
+IKKUNAN_FONTIN_VARI = "#ffffff"
+PELILAUDAN_FONTTI = "Kozuka Gothic Pro B", 12
+# Shakkilaudan ruudut
+TUMMA_RUUTU = "#66452d"
+VAALEA_RUUTU = "#c9a565"
+
+# Lista shakkilaudan koordinaattikirjaimista
 KIRJAIMET = ["a", "b", "c", "d", "e", "f", "g", "h"]
 
 
@@ -44,22 +32,11 @@ class Shakkilauta:
         Keskittyy käyttöliittymän rakentamiseen.
         """
 
-        # Pelin ulkoasun muokkaamisen pitäisi olla helppoa tästä
-        ikkunan_taustavari = "#424242"
-        # shakkilaudan ruudut
-        self.__tumma_ruutu = "#66452d"
-        self.__vaalea_ruutu = "#c9a565"
-        # fontit
-        ikkunan_fontti = "Kozuka Gothic Pro B", 18, "bold"
-        ikkunan_fontin_vari = "#ffffff"
-        self.__pelilaudan_fontti = "Kozuka Gothic Pro B", 12
-
         # Määritetään pääikkunä
         self.__paaikkuna = Tk()
         self.__paaikkuna.overrideredirect(True)
-        self.__paaikkuna.configure(bg=ikkunan_taustavari, relief="solid")
+        self.__paaikkuna.configure(bg=IKKUNAN_TAUSTAVARI, relief="solid")
         self.__paaikkuna.resizable(width=False, height=False)
-        self.__paaikkuna.title("Shakkilauta")
         # Ideana asettaa ikkuna hieman koko näyttöä pienemmäksi
         # ja keskelle näyttöä
         self.__ruudun_koko = self.__paaikkuna.winfo_screenheight() // 10
@@ -71,53 +48,22 @@ class Shakkilauta:
         self.__paaikkuna.geometry(ikkunan_leveys+"x"+ikkunan_korkeus
                                   + "+"+leveyden_keskikohta+"+"+"0")
 
-        # Luodaan käyttöliittymään pelin lisäksi muutama muu toiminto
-        # Koko näytölle asettaminen
-        self.__koko_naytto = Button(self.__paaikkuna,
-                                    bg=ikkunan_taustavari,
-                                    relief="flat", overrelief="flat",
-                                    text="Koko näyttö",
-                                    font=ikkunan_fontti,
-                                    fg=ikkunan_fontin_vari,
-                                    command=self.koko_naytto)
-        self.__koko_naytto.grid(row=0, column=6, columnspan=2, sticky="nsew",
-                                ipadx=0, ipady=0, padx=0, pady=0)
-        # Sulkeminen
-        self.__sulje = Button(self.__paaikkuna,
-                              bg=ikkunan_taustavari,
-                              relief="flat", overrelief="flat",
-                              text="Sulje pelilauta",
-                              font=ikkunan_fontti, fg=ikkunan_fontin_vari,
-                              command=self.__paaikkuna.destroy)
-        self.__sulje.grid(row=0, column=0, columnspan=2, sticky="nsew",
-                          ipadx=0, ipady=0, padx=0, pady=0)
-        # Tilanneteksti
-        self.__siirtonro = 1
-        self.__tilanneteksti = Label(self.__paaikkuna,
-                                     bg=ikkunan_taustavari,
-                                     text="Siirto " + str(self.__siirtonro),
-                                     font=ikkunan_fontti,
-                                     fg=ikkunan_fontin_vari)
-        self.__tilanneteksti.grid(row=0, column=2, columnspan=4, sticky="nsew",
-                                  ipadx=0, ipady=0, padx=0, pady=0)
-
         # Pidetään kirjaa laudan varatuista ruuduista
-        # Valkoisen asemat
-        self.__valkoisen_sotilaat = ["a2", "b2", "c2", "d2",
-                                     "e2", "f2", "g2", "h2"]
-        self.__valkoisen_tornit = ["a1", "h1"]
-        self.__valkoisen_ratsut = ["b1", "g1"]
-        self.__valkoisen_lahetit = ["c1", "f1"]
-        self.__valkoisen_kuningatar = ["d1"]
-        self.__valkoisen_kuningas = ["e1"]
-        # Peilataan mustalle
-        self.__mustan_sotilaat = ["a7", "b7", "c7", "d7",
-                                  "e7", "f7", "g7", "h7"]
-        self.__mustan_tornit = ["a8", "h8"]
-        self.__mustan_ratsut = ["b8", "g8"]
-        self.__mustan_lahetit = ["c8", "f8"]
-        self.__mustan_kuningatar = ["d8"]
-        self.__mustan_kuningas = ["e8"]
+        self.__valkoisen_sotilaat = []
+        self.__valkoisen_tornit = []
+        self.__valkoisen_ratsut = []
+        self.__valkoisen_lahetit = []
+        self.__valkoisen_kuningatar = []
+        self.__valkoisen_kuningas = []
+        self.__mustan_sotilaat = []
+        self.__mustan_tornit = []
+        self.__mustan_ratsut = []
+        self.__mustan_lahetit = []
+        self.__mustan_kuningatar = []
+        self.__mustan_kuningas = []
+        # Yhdistetään myöhemmin
+        self.__valkoisen_asemat = []
+        self.__mustan_asemat = []
 
         # Castlingia eli linnoitusta varten on pidettävä lukua kaikesta tästä
         self.__valkoisen_vasen_torni_liikkunut = False
@@ -131,18 +77,134 @@ class Shakkilauta:
         # Lisäksi näitä tarvitaan myöhemmin ohjelmassa
         self.__valkoisen_kuningas_shakissa = False
         self.__mustan_kuningas_shakissa = False
-        self.__valkoisen_asemat = []
-        self.__mustan_asemat = []
-
-        # Nyt lisätään käyttöliittymään itse shakkilauta
-        # Luodaan ensin laudan jokaista ruutua varten nappi-attribuutti
+        self.__siirtonro = 1
         self.__ruudut_nappeina = []
-        # shakkilauta on 8x8, range(64) on numerot 0-63
+
+        # Alustetaan pelin napit
+        # Kahden pelaajan välinen ottelu
+        self.__kaksinpeli = Button(self.__paaikkuna, relief="flat",
+                                   overrelief="flat")
+        # Pelaaja vastaan tietokone
+        self.__yksinpeli_valk = Button(self.__paaikkuna, relief="flat",
+                                       overrelief="flat")
+
+        self.__yksinpeli_must = Button(self.__paaikkuna, relief="flat",
+                                       overrelief="flat")
+        # Koko näytölle asettaminen
+        self.__koko_naytto = Button(self.__paaikkuna, bg=IKKUNAN_TAUSTAVARI,
+                                    activebackground=IKKUNAN_TAUSTAVARI,
+                                    relief="flat", overrelief="flat",
+                                    text="Koko näyttö", font=IKKUNAN_FONTTI,
+                                    fg=IKKUNAN_FONTIN_VARI,
+                                    activeforeground=IKKUNAN_FONTIN_VARI,
+                                    command=self.koko_naytto)
+        # Sulkeminen
+        self.__sulje = Button(self.__paaikkuna,
+                              bg=IKKUNAN_TAUSTAVARI,
+                              activebackground=IKKUNAN_TAUSTAVARI,
+                              relief="flat", overrelief="flat",
+                              text="Sulje peli", font=IKKUNAN_FONTTI,
+                              fg=IKKUNAN_FONTIN_VARI,
+                              activeforeground=IKKUNAN_FONTIN_VARI,
+                              command=self.__paaikkuna.destroy)
+        # Päivitettävä teksti
+        self.__tilateksti = Label(self.__paaikkuna, bg=IKKUNAN_TAUSTAVARI,
+                                  font=IKKUNAN_FONTTI, fg=IKKUNAN_FONTIN_VARI)
+
+        # Käynnistetään päävalikko
+        self.paavalikko()
+
+    def paavalikko(self):
+        """
+        Nyt kun ohjelmassa on useampia suoritusvaihtoehtoja, peli tarvitsee
+        päävalikon, josta oikea suoritustapa valitaan.
+        """
+
+        for ruutu in self.__ruudut_nappeina:
+            ruutu.configure(bg=IKKUNAN_TAUSTAVARI,
+                            activebackground=IKKUNAN_TAUSTAVARI, text="",
+                            command=NONE)
+            ruutu.destroy()
+        self.__tilateksti.configure(text="Päävalikko")
+        self.__tilateksti.grid(row=0, column=0, columnspan=4, sticky="nsew",
+                               ipadx=0, ipady=0, padx=0, pady=0)
+        self.__koko_naytto.grid(row=0, column=4, columnspan=2, sticky="nsew",
+                                ipadx=0, ipady=0, padx=0, pady=0)
+        self.__sulje.configure(text="Sulje peli",
+                               command=self.__paaikkuna.destroy)
+        self.__sulje.grid(row=0, column=6, columnspan=2, sticky="nsew",
+                          ipadx=0, ipady=0, padx=0, pady=0)
+        self.__kaksinpeli.configure(bg=IKKUNAN_TAUSTAVARI,
+                                    activebackground=IKKUNAN_TAUSTAVARI,
+                                    text="Kaksinpeli", font=IKKUNAN_FONTTI,
+                                    fg=IKKUNAN_FONTIN_VARI,
+                                    activeforeground=IKKUNAN_FONTIN_VARI,
+                                    command=self.kaksinpeli)
+        self.__kaksinpeli.grid(row=1, column=2, rowspan=2, columnspan=4,
+                               sticky="nsew")
+        self.__yksinpeli_valk.configure(bg=IKKUNAN_TAUSTAVARI,
+                                        activebackground=IKKUNAN_TAUSTAVARI,
+                                        text="Yksinpeli valkoisella",
+                                        font=IKKUNAN_FONTTI,
+                                        fg=IKKUNAN_FONTIN_VARI,
+                                        activeforeground=IKKUNAN_FONTIN_VARI,
+                                        command=self.yksinpeli_valkoisella)
+        self.__yksinpeli_valk.grid(row=3, column=2, rowspan=2, columnspan=4,
+                                   sticky="nsew")
+        self.__yksinpeli_must.configure(bg=IKKUNAN_TAUSTAVARI,
+                                        activebackground=IKKUNAN_TAUSTAVARI,
+                                        text="Yksinpeli mustalla",
+                                        font=IKKUNAN_FONTTI,
+                                        fg=IKKUNAN_FONTIN_VARI,
+                                        activeforeground=IKKUNAN_FONTIN_VARI,
+                                        command=self.yksinpeli_mustalla)
+        self.__yksinpeli_must.grid(row=5, column=2, rowspan=2, columnspan=4,
+                                   sticky="nsew")
+
+        for sarake in range(0, 8):
+            self.__paaikkuna.grid_columnconfigure(index=sarake, pad=0,
+                                                  minsize=self.__ruudun_koko)
+        for rivi in range(0, 9):
+            self.__paaikkuna.grid_rowconfigure(index=rivi, pad=0,
+                                               minsize=self.__ruudun_koko)
+
+        self.__paaikkuna.grid_anchor("n")
+
+    def kaksinpeli(self):
+        """
+        Kahdelle pelaajalle pelattavan pelin aloittaminen.
+        """
+
+        self.pelin_aloitus()
+        self.laudan_pohja()
+        self.aseta_nappulat()
+        self.kumman_vuoro()
+
+    def yksinpeli_valkoisella(self):
+        """
+        Yhdelle pelaajalle pelattavan pelin aloittaminen valkoisella.
+        """
+
+        pass
+
+    def yksinpeli_mustalla(self):
+        """
+        Yhdelle pelaajalle pelattavan pelin aloittaminen mustalla.
+        """
+
+        pass
+
+    def pelin_aloitus(self):
+        """
+        Lisää pelissä käytettävät napit ja asettaa pelinappulat lähtöasemiin.
+        """
+
+        # Shakkilauta on 8x8, range(64) on numerot 0-63
+        self.__ruudut_nappeina = []
         for numero in range(64):
             self.__ruudut_nappeina.append(Button(self.__paaikkuna,
                                                  relief="flat",
                                                  overrelief="flat"))
-
         # Lisätään laudan jokainen attribuutti taulukkoon
         # Haluan ensimmäisen attribuutin olevan shakkilaudan koordinaateissa
         # a1, toisen a2 jne.
@@ -157,20 +219,28 @@ class Shakkilauta:
                                                      ipadx=0, ipady=0,
                                                      padx=0, pady=0)
                 indeksi += 1
-        # Tässä voidaan muotoilla koko taulukkoa vielä enemmän
-        for sarake in range(0, 8):
-            self.__paaikkuna.grid_columnconfigure(index=sarake, pad=0,
-                                                  minsize=self.__ruudun_koko)
-        for rivi in range(0, 9):
-            self.__paaikkuna.grid_rowconfigure(index=rivi, pad=0,
-                                               minsize=self.__ruudun_koko)
-        self.__paaikkuna.grid_anchor("n")
 
-        # Käynnistä ohjelma
+        # Peli alkaa alusta eli siirtolaskurikin aloitetaan alusta
+        self.__siirtonro = 1
+        # Pelin käydessä sulkeminen tarkoittaa poistumista päävalikkoon
+        self.__sulje.configure(text="Päävalikkoon", command=self.paavalikko)
+
+        # Lähtöasemat nappuloille
+        self.__valkoisen_sotilaat = ["a2", "b2", "c2", "d2", "e2", "f2", "g2",
+                                     "h2"]
+        self.__valkoisen_tornit = ["a1", "h1"]
+        self.__valkoisen_ratsut = ["b1", "g1"]
+        self.__valkoisen_lahetit = ["c1", "f1"]
+        self.__valkoisen_kuningatar = ["d1"]
+        self.__valkoisen_kuningas = ["e1"]
+        self.__mustan_sotilaat = ["a7", "b7", "c7", "d7", "e7", "f7", "g7",
+                                  "h7"]
+        self.__mustan_tornit = ["a8", "h8"]
+        self.__mustan_ratsut = ["b8", "g8"]
+        self.__mustan_lahetit = ["c8", "f8"]
+        self.__mustan_kuningatar = ["d8"]
+        self.__mustan_kuningas = ["e8"]
         self.paivita_asemat()
-        self.laudan_pohja()
-        self.aseta_nappulat()
-        self.kumman_vuoro()
 
     def paivita_asemat(self):
         """
@@ -190,6 +260,7 @@ class Shakkilauta:
         """
         Tyhjentää laudan napit sekä asettaa ruuduille oikeat taustavärit.
         """
+
         # Koonfiguroidaan napit silmukkana
         ehto = 0
         for ruutu in self.__ruudut_nappeina:
@@ -197,9 +268,9 @@ class Shakkilauta:
             ruutu.configure(text="", command=NONE, state=DISABLED)
             # joka toinen ruutu on tumma ja joka toinen vaalea
             if ehto % 2 == 0:
-                taustavari = self.__tumma_ruutu
+                taustavari = TUMMA_RUUTU
             else:
-                taustavari = self.__vaalea_ruutu
+                taustavari = VAALEA_RUUTU
             ruutu.configure(bg=taustavari, activebackground=taustavari)
             ehto += 1
             # 8. ja 9. ruutu halutaan samanvärisiksi, sitten 16. ja 17. jne.
@@ -249,7 +320,7 @@ class Shakkilauta:
                 if self.__mustan_kuningas[0] in siirrot:
                     self.__mustan_kuningas_shakissa = True
             self.nappi_koordinaatille(ruutu).configure(
-                font=self.__pelilaudan_fontti, text=oikea_teksti,
+                font=PELILAUDAN_FONTTI, text=oikea_teksti,
                 fg=oikea_vari, disabledforeground=oikea_vari,
                 activeforeground=oikea_vari,
                 command=lambda tieto1=ruutu, tieto2=siirrot:
@@ -289,7 +360,7 @@ class Shakkilauta:
                     self.__valkoisen_kuningas_shakissa = True
             # Itse nappien muuttaminen tapahtuu tässä
             self.nappi_koordinaatille(ruutu).configure(
-                font=self.__pelilaudan_fontti, text=oikea_teksti,
+                font=PELILAUDAN_FONTTI, text=oikea_teksti,
                 fg=oikea_vari, disabledforeground=oikea_vari,
                 activeforeground=oikea_vari,
                 command=lambda tieto1=ruutu, tieto2=siirrot:
@@ -302,8 +373,8 @@ class Shakkilauta:
                                                      activebackground="Red")
         if self.__valkoisen_kuningas_shakissa:
             self.nappi_koordinaatille(
-                self.__mustan_kuningas[0]).configure(bg="Red",
-                                                     activebackground="Red")
+                self.__valkoisen_kuningas[0]).configure(bg="Red",
+                                                        activebackground="Red")
 
     def kumman_vuoro(self):
         """
@@ -311,16 +382,18 @@ class Shakkilauta:
         puolelle yksinkertaisesti laskurin parillisuuteen perustuen.
         """
 
+        # Päivitetään tilateksti
+        self.__tilateksti.configure(text="Siirto " + str(self.__siirtonro))
         # Tarkistetaan voitto
         if not self.__valkoisen_kuningas:
             # Musta on voittanut pelin
-            self.__tilanneteksti.configure(text="Peli on päättynyt, "
-                                                "musta voitti!")
+            self.__tilateksti.configure(text="Peli on päättynyt, "
+                                             "musta voitti!")
             return
         if not self.__mustan_kuningas:
             # Valkoinen on voittanut pelin
-            self.__tilanneteksti.configure(text="Peli on päättynyt, valkoinen "
-                                                "voitti!")
+            self.__tilateksti.configure(text="Peli on päättynyt, valkoinen "
+                                             "voitti!")
             return
 
         if self.__siirtonro % 2 == 1:
@@ -353,7 +426,7 @@ class Shakkilauta:
         for ruutu in siirrot:
             self.nappi_koordinaatille(ruutu).configure(
                 state=NORMAL, text="Siirto", fg="grey",
-                font=self.__pelilaudan_fontti,
+                font=PELILAUDAN_FONTTI,
                 activeforeground="grey",
                 command=lambda tieto1=lahtoasema, tieto2=ruutu:
                 self.tee_siirto(tieto1, tieto2))
